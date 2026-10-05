@@ -42,13 +42,15 @@ Exit:
 - Color parser: HEX/RGB/HSL.
 - deterministic precedence rules;
 - ambiguity model for Paste As…;
+- native-vs-external clipboard ownership/change-token state machine;
 - unit tests independent of AE.
 
 Exit:
 - classification tests cover valid, invalid and ambiguous inputs.
 
 ### M3 — Safe persistence + image path
-- platform clipboard image adapter;
+- platform clipboard adapters for standard image/text/files representations;
+- browser / Photoshop / Finder-Explorer interoperability fixtures;
 - durable write contract;
 - import into AE;
 - layer insertion;
@@ -73,7 +75,8 @@ Exit:
 - macOS/Windows builds for approved matrix;
 - runtime Regression Level 2 because command interception is host-wide;
 - lifecycle/restart/reload;
-- native AE copy/paste regression;
+- native AE copy/paste regression, including stale external clipboard after AE Copy/Cut;
+- browser → AE, Photoshop → AE and Finder/Explorer → AE interoperability scenarios;
 - asset persistence after restart/reopen;
 - validation build only if explicitly requested.
 
