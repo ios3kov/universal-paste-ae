@@ -4,10 +4,13 @@
 #include <string>
 
 #include "universal_paste/ClipboardClassifier.hpp"
+#include "universal_paste/ClipboardOwnershipTracker.hpp"
 #include "universal_paste/ColorParser.hpp"
 
 using universal_paste::ClassifyClipboard;
 using universal_paste::ClipboardKind;
+using universal_paste::ClipboardOwnershipState;
+using universal_paste::ClipboardOwnershipTracker;
 using universal_paste::ClipboardSnapshot;
 using universal_paste::ParseColor;
 
@@ -40,7 +43,7 @@ void TestRgb() {
   assert(Near(c->g, 0.0));
   assert(Near(c->b, 128.0 / 255.0));
 
-  c = ParseColor("rgba(100%, 0%, 50%, 25%)");
+  c = ParseColor(" RGBA(100%, 0%, 50%, 25%) ");
   assert(c);
   assert(Near(c->r, 1.0));
   assert(Near(c->g, 0.0));
@@ -60,13 +63,24 @@ void TestHsl() {
   assert(Near(c->r, 0.0));
   assert(Near(c->g, 0.5));
   assert(Near(c->b, 0.0));
+
+  c = ParseColor("hsla(-240, 100%, 50%, 0.5)");
+  assert(c);
+  assert(Near(c->r, 0.0));
+  assert(Near(c->g, 1.0));
+  assert(Near(c->b, 0.0));
+  assert(Near(c->a, 0.5));
 }
 
 void TestRejects() {
+  assert(!ParseColor(""));
   assert(!ParseColor("hello #fff"));
   assert(!ParseColor("rgb(999, 0, 0)"));
+  assert(!ParseColor("rgba(0, 0, 0, 2)"));
   assert(!ParseColor("hsl(0, 100, 50)"));
+  assert(!ParseColor("hsl(0, 101%, 50%)"));
   assert(!ParseColor("#12"));
+  assert(!ParseColor("#ggg"));
 }
 
 void TestClassification() {
@@ -101,6 +115,50 @@ void TestClassification() {
   assert(result.alternatives[2] == ClipboardKind::Text);
 }
 
+void TestNativeClipboardOwnership() {
+  ClipboardOwnershipTracker tracker;
+
+  assert(tracker.state() == ClipboardOwnershipState::ExternalEligible);
+  assert(!tracker.ShouldPreferNativePaste(10));
+
+  tracker.OnAeCopyOrCutObserved();
+  assert(tracker.state() == ClipboardOwnershipState::AwaitingNativeCopySettle);
+  assert(tracker.ShouldPreferNativePaste(10));
+
+  tracker.OnAeCopyOrCutSettled(11);
+  assert(tracker.state() == ClipboardOwnershipState::NativePastePreferred);
+  assert(tracker.native_token() == 11);
+  assert(tracker.ShouldPreferNativePaste(11));
+  assert(tracker.ShouldPreferNativePaste(11));
+
+  assert(!tracker.ShouldPreferNativePaste(12));
+  assert(tracker.state() == ClipboardOwnershipState::ExternalEligible);
+  assert(!tracker.native_token());
+}
+
+void TestNativeClipboardOwnershipUnknownTokenFailsSafe() {
+  ClipboardOwnershipTracker tracker;
+
+  tracker.OnAeCopyOrCutObserved();
+  tracker.OnAeCopyOrCutSettled(std::nullopt);
+  assert(tracker.state() == ClipboardOwnershipState::NativeTokenUnavailable);
+  assert(tracker.ShouldPreferNativePaste(std::nullopt));
+  assert(tracker.ShouldPreferNativePaste(50));
+
+  tracker.Reset();
+  assert(tracker.state() == ClipboardOwnershipState::ExternalEligible);
+  assert(!tracker.ShouldPreferNativePaste(50));
+}
+
+void TestTokenLossAfterNativeCopyFailsSafe() {
+  ClipboardOwnershipTracker tracker;
+
+  tracker.OnAeCopyOrCutObserved();
+  tracker.OnAeCopyOrCutSettled(100);
+  assert(tracker.ShouldPreferNativePaste(std::nullopt));
+  assert(tracker.state() == ClipboardOwnershipState::NativeTokenUnavailable);
+}
+
 }  // namespace
 
 int main() {
@@ -109,6 +167,9 @@ int main() {
   TestHsl();
   TestRejects();
   TestClassification();
+  TestNativeClipboardOwnership();
+  TestNativeClipboardOwnershipUnknownTokenFailsSafe();
+  TestTokenLossAfterNativeCopyFailsSafe();
   std::cout << "Universal Paste core tests passed\n";
   return 0;
 }

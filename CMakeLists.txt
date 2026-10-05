@@ -7,10 +7,28 @@ option(UNIVERSAL_PASTE_BUILD_TESTS "Build Universal Paste core tests" ON)
 add_library(universal_paste_core STATIC
   src/core/ColorParser.cpp
   src/core/ClipboardClassifier.cpp
+  src/core/ClipboardOwnershipTracker.cpp
 )
 
 target_include_directories(universal_paste_core PUBLIC include)
 target_compile_features(universal_paste_core PUBLIC cxx_std_17)
+
+if(APPLE)
+  enable_language(OBJCXX)
+  target_sources(universal_paste_core PRIVATE
+    src/platform/macos/SystemClipboardToken.mm
+  )
+  target_link_libraries(universal_paste_core PRIVATE "-framework AppKit")
+elseif(WIN32)
+  target_sources(universal_paste_core PRIVATE
+    src/platform/windows/SystemClipboardToken.cpp
+  )
+  target_link_libraries(universal_paste_core PRIVATE User32)
+else()
+  target_sources(universal_paste_core PRIVATE
+    src/platform/fallback/SystemClipboardToken.cpp
+  )
+endif()
 
 if(MSVC)
   target_compile_options(universal_paste_core PRIVATE /W4 /permissive-)
