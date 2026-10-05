@@ -48,6 +48,42 @@ Therefore:
 - do not assume AE UXP clipboard parity until tested;
 - keep the core clipboard classifier/storage design separable so a future UXP UI/command layer can reuse it if appropriate.
 
+
+## Finding 5 — external source applications are intentionally source-agnostic
+
+Universal Paste must not contain separate integration logic for Chrome, Safari, Photoshop, Figma, Finder or Explorer.
+
+The platform adapter consumes standard operating-system clipboard representations and maps them into one common `ClipboardSnapshot`:
+- macOS: AppKit pasteboard exposes common image, URL/file, string and other representations; PNG/TIFF are standard image pasteboard types.
+- Windows: Unicode text, DIB/DIBV5 bitmaps and CF_HDROP file lists are standard clipboard paths.
+
+A source application may publish several representations at the same time. Universal Paste therefore chooses a deterministic primary representation while retaining alternatives for Paste As….
+
+Private source-app formats are optional future compatibility work only when no suitable standard representation is present.
+
+## Finding 6 — native AE Copy/Cut needs ownership protection
+
+A critical false-positive case exists:
+
+1. user copies an image/text in another app;
+2. user later performs Copy/Cut inside After Effects;
+3. the system clipboard may still contain the old external data;
+4. a naive Paste hook could consume that stale external data instead of allowing AE to paste its internal object.
+
+Mitigation implemented in the portable core:
+- observe AE Copy/Cut;
+- mark native paste as preferred;
+- settle/store an opaque OS clipboard change token;
+- while the token is unchanged, Paste stays native AE;
+- when the system clipboard token changes externally, Universal Paste becomes eligible again;
+- if a token cannot be read, fail safe by preferring native AE paste.
+
+Platform token sources:
+- macOS: `NSPasteboard.changeCount`;
+- Windows: `GetClipboardSequenceNumber()`.
+
+This state machine is independent of AE command IDs and is covered by unit tests. Runtime PoC must still prove that Copy/Cut/Paste hooks are observed in the required order.
+
 ## Provisional architecture
 
 ```
@@ -56,6 +92,7 @@ AE Paste command
       ▼
 Native AEGP command hook
       │
+      ├── recent AE Copy/Cut owns paste → return UNHANDLED → native AE Paste
       ├── clipboard unsupported / AE-owned → return UNHANDLED → native AE Paste
       │
       └── supported external content
@@ -77,8 +114,8 @@ Native AEGP command hook
 ```
 
 Platform-specific clipboard access should sit behind an adapter:
-- macOS adapter: native pasteboard API — exact selected API to verify against the build SDK.
-- Windows adapter: native clipboard API — exact selected API to verify against the build SDK.
+- macOS adapter: AppKit `NSPasteboard` standard image/text/file representations and `changeCount`.
+- Windows adapter: Win32 clipboard standard formats (Unicode text, DIB/DIBV5, CF_HDROP) and `GetClipboardSequenceNumber`.
 
 ## Asset persistence direction
 
@@ -118,3 +155,6 @@ PoC-01 is research evidence, not v1 implementation.
 - Adobe developer announcement — CEP → UXP timeline: https://blog.developer.adobe.com/en/publish/2026/09/investing-in-the-future-of-creative-cloud-extensibility-uxp-comes-to-our-flagship-applications
 - Adobe After Effects UXP docs: https://developer.adobe.com/after-effects/uxp/
 - Adobe UXP clipboard recipe: https://developer.adobe.com/uxp/guides/how-to/recipes/clipboard/
+- Apple NSPasteboard: https://developer.apple.com/documentation/appkit/nspasteboard
+- Microsoft Clipboard Formats: https://learn.microsoft.com/windows/win32/dataxchg/clipboard-formats
+- Microsoft GetClipboardSequenceNumber: https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-getclipboardsequencenumber
