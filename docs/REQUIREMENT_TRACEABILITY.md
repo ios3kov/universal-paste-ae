@@ -14,7 +14,8 @@ Risk Profile: Critical
 | UP-CORE-06 Paste As… | M5 | user can choose another valid interpretation | TC-PASTEAS-01 | NOT RUN |
 | UP-CORE-07 persistent assets | M3 | reopened project has no clipboard/temp dependency | TC-ASSET-REOPEN | NOT RUN |
 | UP-SAFE-01 safe failure | M3/M4 | failed operation has no silent project corruption | TC-FAIL-* | NOT RUN |
-| UP-SAFE-02 native AE paste preserved | M0 + regression | plugin does not consume unsupported/AE-owned paste | POC-01 + TC-NATIVE-PASTE | NOT RUN |
+| UP-SAFE-02 native AE paste preserved | M0 + regression | plugin does not consume unsupported/AE-owned paste, including stale external OS clipboard after AE Copy/Cut | POC-01 + TC-NATIVE-PASTE | NOT RUN |
+| UP-EXT-01 source-app agnostic clipboard | M3/M4/M6 | supported standard image/text/file clipboard data from browser, Photoshop and OS file manager produces the same result | TC-EXT-BROWSER + TC-EXT-PS + TC-EXT-FILES | NOT RUN |
 
 ## Risk-control tasks
 
@@ -23,6 +24,7 @@ Risk Profile: Critical
 | unstable AE command IDs | PoC-01 + per-supported-build runtime evidence; no invented stable ID |
 | command recursion / double paste | handled/unhandled state tests and re-entry guard if evidence shows needed |
 | clipboard ambiguity | deterministic classifier + Paste As… |
+| stale external clipboard after native AE Copy/Cut | clipboard change-token ownership tracker; fail safe to native AE paste when ownership is uncertain |
 | missing footage | durable write before dependency + reopen tests |
 | partial AE/filesystem mutation | explicit operation state and recovery policy |
 | platform divergence | common acceptance tests over separate macOS/Windows adapters |
