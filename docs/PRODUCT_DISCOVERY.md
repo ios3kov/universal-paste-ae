@@ -29,6 +29,7 @@ Value proposition: **Copied → pasted → animate.**
 | UP-CORE-07 | Clipboard-created image assets are stored persistently so the AE project does not depend on temporary clipboard data. | Core | User product brief |
 | UP-SAFE-01 | Unsupported/ambiguous clipboard states must fail safely and must not destroy or corrupt existing AE state. | Core | Derived from the core workflow |
 | UP-SAFE-02 | Normal AE copy/paste must remain usable when Universal Paste should not consume the command. | Core | Derived from replacing/intercepting Paste |
+| UP-EXT-01 | Standard system clipboard content must work regardless of source application (for example browser, Photoshop, Finder/Explorer, Figma) when it exposes supported image/text/file representations. | Core | User clarification 2026-10-05 |
 
 ## Scope
 
@@ -40,6 +41,7 @@ Value proposition: **Copied → pasted → animate.**
 - Automatic type detection.
 - Persistent storage for generated/imported clipboard assets.
 - Safe fallback to native AE paste when Universal Paste does not own the clipboard content.
+- Source-agnostic interoperability through standard system clipboard representations; no per-app integration required for browser/Photoshop/file-manager workflows.
 
 ### Important
 - Paste As… override.
@@ -57,13 +59,16 @@ Value proposition: **Copied → pasted → animate.**
 - Full HTML/CSS parser.
 - Cloud asset manager.
 - Replacing AE's internal project/layer clipboard format.
+- Proprietary clipboard representations that expose no supported standard image/text/file fallback.
+- Downloading a copied URL as an asset; a URL copied as text remains text in v1 unless the clipboard also exposes a supported image/file representation.
 
 ## Core user flows
 
 ### Flow A — Automatic paste
 - Trigger: user executes normal Paste in AE.
 - Initial state: an active AE project; composition context may or may not be valid.
-- Product action: inspect clipboard without mutating AE.
+- Product action: inspect standard system clipboard representations without mutating AE.
+- Source application is not part of classification: Chrome/Safari/Photoshop/Figma/Finder/Explorer are accepted through the same image/text/file contract.
 - If supported external content is present: classify it, create/import the matching object, and mark the operation handled.
 - If not: leave the command to AE.
 - Expected result: one predictable paste action.
@@ -92,6 +97,7 @@ Value proposition: **Copied → pasted → animate.**
 | SC-06 | Asset created from clipboard is reopened after restart. | No missing-footage dependency on OS temp/clipboard storage. |
 | SC-07 | A supported paste fails mid-operation. | No silent corruption; result is recoverable and reported. |
 | SC-08 | Operation is undone. | All AE-side mutations created by one Universal Paste action undo together where host APIs permit. |
+| SC-09 | Equivalent supported content is copied from browser, Photoshop and OS file manager. | Same Universal Paste result is produced from the standard clipboard representation, without source-app-specific code paths. |
 
 ## Constraints and open questions
 
@@ -101,6 +107,8 @@ Value proposition: **Copied → pasted → animate.**
 - Asset storage must not rely only on temporary directories.
 - Native AE behavior must not be consumed unless Universal Paste intentionally handles the current external content.
 - CEP is not selected for a new long-lived architecture.
+- External interoperability is defined by standard OS clipboard representations, not by private source-application formats.
+- A system clipboard may expose several representations at once; the classifier must choose a deterministic primary interpretation and retain valid alternatives for Paste As….
 
 ### Open questions
 | Question | Impact | Blocking? |
